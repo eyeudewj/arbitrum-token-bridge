@@ -297,6 +297,15 @@ export function findTransactionDetailsCustomDestinationAddress(
     .should('be.visible')
 }
 
+/**
+ * Escapes special characters in a string to be used in a regex pattern.
+ * @param {string} string - The input string to escape.
+ * @returns {string} - The escaped string.
+ */
+function escapeRegExp(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // $& means the whole matched string
+}
+
 export function findTransactionInTransactionHistory({
   symbol,
   symbol2,
@@ -310,16 +319,22 @@ export function findTransactionInTransactionHistory({
   amount2?: number
   duration?: string
 }) {
-  // Replace . with \.
-  const parsedAmount = amount.toString().replace(/\./g, '\\.')
+  // Sanitize the amount
+  const parsedAmount = escapeRegExp(amount.toString())
 
+  // Sanitize symbols
+  const escapedSymbol = escapeRegExp(symbol)
+  const escapedSymbol2 = symbol2 ? escapeRegExp(symbol2) : ''
+
+  // Construct the regex with escaped inputs
   const rowId = new RegExp(
-    `(claimable|deposit)-row-[0-9xabcdef]*-${parsedAmount}${symbol}${
-      amount2 && symbol2 ? `-${amount2}${symbol2}` : ''
+    `(claimable|deposit)-row-[0-9xabcdef]*-${parsedAmount}${escapedSymbol}${
+      amount2 && escapedSymbol2 ? `-${escapeRegExp(amount2.toString())}${escapedSymbol2}` : ''
     }`
   )
 
   cy.findByTestId(rowId).as('row')
+  
   if (duration) {
     cy.get('@row').findAllByText(duration).first().should('be.visible')
   }
@@ -327,6 +342,7 @@ export function findTransactionInTransactionHistory({
   cy.get('@row')
     .findByLabelText('Transaction details button')
     .should('be.visible')
+  
   return cy.get('@row')
 }
 
